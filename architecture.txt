@@ -1,0 +1,127 @@
+Overview:
+
+1) hiratehseen 
+-- reads the images in grayscale, resizes them to 105x105, defines 4 manual augmentations (noise, blur, affine adn gradient)
+-- starts from 466 and expands them to 7456 samples through comninatorial augmentation, then saves the augmented images in a folder
+-- it maps 5 classes: Diwani, Kufi, Maghribi, Mohakek, Parsi; split 75/25 for train-test
+-- Local Phase-Quantization LPQ feature calculation of length 256, then feeds that 1 feature vector into a heavy 1D CNN + huge dense stack => 45.45M parameters for only 5 classes
+--> design is heavily feature-engineered and likely over-parameterized for the underlying task, though it reaches high accuracy quickly  
+
+2) mhmoodlan
+-- it wraps a FontModel around RuFa dataset and a CNN network 
+-- images at 100x100 resolution with 516 real images from RuFa (Ruqaa, Nastaaliq)
+-- a model of 3-layer CNN, followed by a 20layer fully connected network with dropout, Adam and binary cross-entropy loss
+-- CNN: Conv2D(16), MaxPooling, Dropout, Conv2D(32), MaxPooling, Dropout, Conv2D(64), MaxPooling, Dropout, 
+-- Flatten, Dense(128), Dropout, Dense(16), Dropout, Dense(1) for binary classification
+--> ~97% accuracy  
+
+3) LoayMo99
+-- 9 classes: Diwani, Kufi, Maghribi, Mohakek, Parsi, Rekaa, Naskh, Thuluth and Squar-kufic
+-- simple CNN classification and feature-based classification with SVM, KNN, Voting and Random Forest
+
+4) melhazzouri
+-- trains and tests on RuFa with 100x100 RGB inputs
+-- small CNN: rescalong, Conv2d(32), MaxPooling, Conv2D(16), MaxPooling, Dropout(0.5), Flatten, Dense(64) with softmax
+-- trained for 8 epochs with Adam and categorical cross-entropy loss
+-- computes confusion matrix, accuracy, precision, classification report 
+-- training on synthetic data and testing on real data 
+
+6) Mustapha-AJEGHRIR
+-- trained on RuFa dataset
+-- CNN: nut Conv2D(16), MaxPooling, DropOut, Conv2D(32), MaxPooling, Dropout, Conv2d(64), MaxPooling, Dropout, 
+-- Flatten, Dense(128) DropOut, Dense(16), DropOut, Dense(1) for binary classification  
+-- trained for 10 epochs, `Adam` optimizer, binary cross-entropy loss
+-- ~96% accuracy 
+
+why using LPQ features?
+it is used as a threshold-based preprocessing
+based on quatized local Fourier phase information 
+the key signal lies in local phase/ local texture/ blur-robust stroke patterns and not high-level object shape 
+which is a good intuition for calligraphy and font style 
+
+LPQ computes local phase-based texture descriptors and is known for blur-intensive texture classification
+it helps in arabic calligraphy because still differences lie in stroke thickness, local curvature, edge endings, 
+slant, junction shape and texture-like repeated pen patterns 
+because the task isnt a generic image classification but rather a fine-grained stroke-style classification
+--> we need to:
+    1- capture local stroke texture 
+    2- capture larger style layout/spatial rhythm
+    3- avoid depending on handcrafted features like LPQ
+network should learn what LPQ was trying to give, but natively 
+because once we extract LPQ features, the model is limited to the information contained in those features, 
+and cannot learn from raw pixel data to discover other potentially useful features
+
+
+then..
+choose a backbone for feature extraction that can capture local texture patterns and spatial relationships
+---> ResNet18 or ResNet34, DenseNet, EfficientNet, ViT, Swin, ConvNeXt
+
+fine-grained classification is hard, because classes differ by subtle local details, not big oject-level differences
+recent fine-grained work emphasizes the need to preserve and combine local detailed cues with global semantic information:
+https://www.frontiersin.org/journals/neurorobotics/articles/10.3389/fnbot.2023.1301192/full?utm_source=chatgpt.com
+https://www.nature.com/articles/s41598-022-23835-0?utm_source=chatgpt.com
+--> glabal style flow and local stroke details matter (two-feature stream architecture)
+a tiny CNN may learn something, but it ca easily become weak or too coarse
+
+Image
+  ↓
+ResNet backbone (shared)
+  ├── Mid-level features  → local/detail descriptor (early layers)
+  └── Final features      → global/semantic descriptor (deep layers)
+Concatenate
+  ↓
+MLP classifier
+  ↓
+Softmax
+
+Global branch helps with:
+- visual rhythm / spacing / overall layout / slant tendency / letter proportion style 
+Local branch helps with:
+- stroke endings / curvature / pen width changes / junction patterns / local texture-like stroke behavior 
+
+
+HOW?
+1) input
+- image resized to 224x224 in grayscale or 3-channels cause ResNet expects 3 channels 
+- if images are grayscale, we can duplicate the single channel to create a 3-channel input for ResNet
+
+2) backbone
+- start with ResNet18 pretrained 
+- we need two stages of features: 
+    - mid-level features from an early layer (e.g. after layer3 or layer2) for local details
+    - final features from the last layer before classification for global style like layer4
+
+3) local branch 
+- take feature map from layer2 or layer3; it still keeps meaningful spatial detail while already being more abstract than raw edges; which preserves smaller stroke cues better 
+- then pass it rhrough something simple like a 1x1 convolution to reduce channels -> BacthNorm -> ReLU -> Global Average Pooling 
+--> vector 1 ∈ R^d; a local-detail descriptor 
+
+4) global branch
+- take the final feature vector from layer4 
+- then apply Global Average Pooling to get vector g ∈ R^d; a global-style descriptor with depth and semantic 
+
+5) Fusion 
+- concatenate local and global vectors: z = [l; g] ∈ R^(2d)
+- then use a small classifier head: Linear(512) or Linear(256) -> ReLU -> Dropout(0.3) -> Linear(num_classes) -> Softmax
+
+6) Training
+- use cross-entropy loss for multi-class classification
+- data augmentation: random rotations, scaling, horizontal flips, brightness/contrast adjustments to increase robustness to variations in calligraphy style and image quality
+- train for 20-30 epochs with early stopping based on validation loss to prevent overfitting
+- use AdamW optimizer 
+- batch size of 16 or 32 depending on GPU memory
+- weight decay of 1e-4 to regularize the model and prevent overfitting
+- Use a cosine decay scheduler, ideally with a short warmup like 3-5 epochs to stabilize training
+- backbone needs a small LR like 1e-4; new head/ local-global fusion layers need larger LR like 5e-4 or 1e-3
+
+--- Workflow ---
+Input image
+   ↓
+ResNet18 backbone
+   ├── layer3 output → local branch → pooling → l
+   └── layer4 output → global branch → pooling → g
+Concatenate [l ; g]
+   ↓
+MLP classifier head
+   ↓
+Softmax over style classes
