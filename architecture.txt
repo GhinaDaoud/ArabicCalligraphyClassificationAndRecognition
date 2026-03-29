@@ -109,7 +109,7 @@ HOW?
 - data augmentation: random rotations, scaling, horizontal flips, brightness/contrast adjustments to increase robustness to variations in calligraphy style and image quality
 - train for 20-30 epochs with early stopping based on validation loss to prevent overfitting
 - use AdamW optimizer 
-- batch size of 16 or 32 depending on GPU memory
+- batch size of 8 or 12 or 16 depending on GPU memory
 - weight decay of 1e-4 to regularize the model and prevent overfitting
 - Use a cosine decay scheduler, ideally with a short warmup like 3-5 epochs to stabilize training
 - backbone needs a small LR like 1e-4; new head/ local-global fusion layers need larger LR like 5e-4 or 1e-3
@@ -125,3 +125,259 @@ Concatenate [l ; g]
 MLP classifier head
    ↓
 Softmax over style classes
+
+Data:
+augmentation:  augment.py <path_to_dataset_root>
+output folder structure:
+out
+├── images
+│   └── [.png files]
+├── labels.csv
+└── analytics.png
+
+Input size difference:
+- best choice when working with ResNet is to have consistent input size 
+- so.. need to standardize the image resolutions before feeding into the model
+--> forcce a specific aspect ration of ~224x224
+    - pad small images to 224x224 with black borders (if they are smaller)
+    - for larger images, resize them to 224x224 while maintaining aspect ratio, and then pad the remaining area to reach 224x224
+--> fixed-size tensor input for batch processing 
+but.. if most images have a triangular format; then rescale to a rectangle not a square shape 
+like 256x128 or 384x192; which is more natural for the calligraphy images and may preserve more details without excessive padding
+
+
+Data augmentation (done by Wissam):
+1- mixed labels are removed from csv file 
+2- augmentation counts are keyed by basename -> check duplicates and image renaming to avoid overwriting
+3- balancing dataset: unlabeld-image filtering uses a hardcoded 80% threshold of he largest labeled class;
+   while synthetic augmentation uses a target_ratio of 60%
+4- augmentation: ElasticTransform and wide rotation range are strong for a classification work 
+   because they might change the stroke geometry instead of just adding realistic variations
+5- random seed is none -> fix it for data generalization and reproducibility
+
+how it works?
+if labels.csv file exist in data folder, it uses it as GT; else it uses the folder name as a label for font style 
+it keeps labeled images, then selectively keeps some unlabled images for underrepresented classes to minority classes and light random augmentation to majority classes
+weites everything into augmented/images and augmented/labels.csv with naming convention: CLASS_000000.png
+
+
+New dataset:
+- won't use Misc dataset; AC_data is richer and has duplicated with Misc; more classes
+- RuFa Ruq'ah and Nasta'liq 
+- DuwaBench all classes
+- HICMA all classes 
+
+Classes distribution before augmentation:
+  Diwani: 657
+  Kufic: 292
+  Muhaqaq: 207
+  Naskh: 4025
+  Nasta'liq: 500
+  Ruq'ah: 520
+  Thuluth: 1911
+
+Naskh is exremely dominant and Thuluth is also large 
+-> reduce imbalance w/o creating a synthetic-heavy dataset
+  -> target around 40-60% of the largest class or around 1000-1500 samples per class after augmentation
+    -> look also for wrighted sampling 
+
+Diwani, Ruq'ah, Nasta'liq: up to 1x extra
+Kufic: up to 2x extra
+Muhaqaq: up to 3x extra
+
+The actual image transforms are intentionally conservative and fast:
+    small rotation
+    small translation via affine transform
+    mild contrast change
+    mild brightness change
+    occasional light blur
+    occasional sharpening
+
+
+
+
+--- First training ---
+(pytorch_course) C:\Users\user\OneDrive - American University of Beirut\Courses\NeuralNetworks-EECE693\Project\ArabicCalligraphyClassificationAndRecognition>python src\training\train.py --config configs\resnet18_local_global.yaml
+Training setup
+  Device: cuda
+  Model: resnet18_local_global
+  Num classes: 7
+  Train samples: 8773
+  Val samples: 2193
+  Train batches: 1097
+  Val batches: 275
+  Batch size: 8
+  Epochs: stage1=8, stage2=15
+  Optimizer: AdamW | backbone_lr=0.0001 | head_lr=0.0005 | wd=0.0001
+  Scheduler: cosine | t_max=33
+
+[Epoch 001/023] stage=warmup | lr_backbone=9.95343e-05 | lr_head=0.000497671
+  train: loss=0.7030 | acc=0.7601 | f1=0.7016 | precision=0.7217 | recall=0.6884
+  val:   loss=0.3172 | acc=0.8969 | f1=0.8715 | precision=0.9025 | recall=0.8576 | best_f1=0.8715
+
+[Epoch 002/023] stage=warmup | lr_backbone=9.81459e-05 | lr_head=0.000490729
+  train: loss=0.4131 | acc=0.8629 | f1=0.8364 | precision=0.8419 | recall=0.8318
+  val:   loss=0.2507 | acc=0.9170 | f1=0.9034 | precision=0.9071 | recall=0.9023 | best_f1=0.9034
+
+[Epoch 003/023] stage=warmup | lr_backbone=9.58606e-05 | lr_head=0.000479303
+  train: loss=0.3592 | acc=0.8791 | f1=0.8567 | precision=0.8614 | recall=0.8528
+  val:   loss=0.2273 | acc=0.9252 | f1=0.9133 | precision=0.9120 | recall=0.9172 | best_f1=0.9133
+
+[Epoch 004/023] stage=warmup | lr_backbone=9.2721e-05 | lr_head=0.000463605
+  train: loss=0.3183 | acc=0.8932 | f1=0.8744 | precision=0.8779 | recall=0.8714
+  val:   loss=0.2055 | acc=0.9275 | f1=0.9144 | precision=0.9189 | recall=0.9107 | best_f1=0.9144
+
+[Epoch 005/023] stage=warmup | lr_backbone=8.87856e-05 | lr_head=0.000443928
+  train: loss=0.2862 | acc=0.9037 | f1=0.8890 | precision=0.8925 | recall=0.8860
+  val:   loss=0.1937 | acc=0.9348 | f1=0.9237 | precision=0.9247 | recall=0.9239 | best_f1=0.9237
+
+[Epoch 006/023] stage=warmup | lr_backbone=8.41277e-05 | lr_head=0.000420638
+  train: loss=0.2657 | acc=0.9077 | f1=0.8930 | precision=0.8954 | recall=0.8910
+  val:   loss=0.1797 | acc=0.9362 | f1=0.9262 | precision=0.9269 | recall=0.9258 | best_f1=0.9262
+
+[Epoch 007/023] stage=warmup | lr_backbone=7.8834e-05 | lr_head=0.00039417
+  train: loss=0.2450 | acc=0.9200 | f1=0.9079 | precision=0.9103 | recall=0.9058
+  val:   loss=0.1764 | acc=0.9403 | f1=0.9299 | precision=0.9280 | recall=0.9331 | best_f1=0.9299
+
+[Epoch 008/023] stage=warmup | lr_backbone=7.30033e-05 | lr_head=0.000365016
+  train: loss=0.2318 | acc=0.9210 | f1=0.9086 | precision=0.9104 | recall=0.9072
+  val:   loss=0.1767 | acc=0.9430 | f1=0.9348 | precision=0.9312 | recall=0.9391 | best_f1=0.9348
+
+Switching to stage 2 fine-tuning: backbone unfrozen.
+
+[Epoch 009/023] stage=finetune | lr_backbone=6.6744e-05 | lr_head=0.00033372
+  train: loss=0.2684 | acc=0.9103 | f1=0.8983 | precision=0.8996 | recall=0.8975
+  val:   loss=0.1642 | acc=0.9444 | f1=0.9366 | precision=0.9360 | recall=0.9402 | best_f1=0.9366
+
+
+--- Training 2 ---
+Training setup
+  Device: cuda
+  GPU: NVIDIA GeForce RTX 3050 Laptop GPU
+  Model: resnet18_local_global
+  Num classes: 7
+  Train samples: 8778
+  Val samples: 1621
+  Train batches: 1098
+  Val batches: 203
+  Batch size: 8
+  Epochs: stage1=8, stage2=15
+  Optimizer: AdamW | backbone_lr=0.0001 | head_lr=0.0005 | wd=0.0001
+  Scheduler: cosine | t_max=33
+  CPU threads: intra_op=2 | interop=1
+  Throttle per batch: 0.0 sec
+
+[Epoch 001/023] stage=warmup | lr_backbone=9.95343e-05 | lr_head=0.000497671
+  train: loss=0.6941 | acc=0.7609 | f1=0.7039 | precision=0.7213 | recall=0.6925
+  val:   loss=0.3086 | acc=0.8914 | f1=0.8299 | precision=0.8357 | recall=0.8345 | best_f1=0.8299
+
+[Epoch 002/023] stage=warmup | lr_backbone=9.81459e-05 | lr_head=0.000490729
+  train: loss=0.4131 | acc=0.8622 | f1=0.8346 | precision=0.8399 | recall=0.8300
+  val:   loss=0.3360 | acc=0.8840 | f1=0.8391 | precision=0.8436 | recall=0.8626 | best_f1=0.8391
+
+[Epoch 003/023] stage=warmup | lr_backbone=9.58606e-05 | lr_head=0.000479303
+  train: loss=0.3473 | acc=0.8837 | f1=0.8622 | precision=0.8648 | recall=0.8601
+  val:   loss=0.2343 | acc=0.9254 | f1=0.8863 | precision=0.9009 | recall=0.8735 | best_f1=0.8863
+
+[Epoch 004/023] stage=warmup | lr_backbone=9.2721e-05 | lr_head=0.000463605
+  train: loss=0.2954 | acc=0.8977 | f1=0.8794 | precision=0.8823 | recall=0.8771
+  val:   loss=0.2434 | acc=0.9173 | f1=0.8649 | precision=0.8544 | recall=0.8799 | best_f1=0.8863
+
+[Epoch 005/023] stage=warmup | lr_backbone=8.87856e-05 | lr_head=0.000443928
+  train: loss=0.2859 | acc=0.9007 | f1=0.8846 | precision=0.8858 | recall=0.8837
+  val:   loss=0.2543 | acc=0.9235 | f1=0.8841 | precision=0.9016 | recall=0.8738 | best_f1=0.8863
+
+[Epoch 006/023] stage=warmup | lr_backbone=8.41277e-05 | lr_head=0.000420638
+  train: loss=0.2645 | acc=0.9106 | f1=0.8951 | precision=0.8968 | recall=0.8940
+  val:   loss=0.2356 | acc=0.9229 | f1=0.8793 | precision=0.8730 | recall=0.8905 | best_f1=0.8863
+
+[Epoch 007/023] stage=warmup | lr_backbone=7.8834e-05 | lr_head=0.00039417
+  train: loss=0.2382 | acc=0.9154 | f1=0.9015 | precision=0.9021 | recall=0.9010
+  val:   loss=0.2520 | acc=0.9173 | f1=0.8674 | precision=0.8585 | recall=0.8907 | best_f1=0.8863
+
+[Epoch 008/023] stage=warmup | lr_backbone=7.30033e-05 | lr_head=0.000365016
+  train: loss=0.2229 | acc=0.9229 | f1=0.9105 | precision=0.9127 | recall=0.9086
+  val:   loss=0.2437 | acc=0.9297 | f1=0.8907 | precision=0.8798 | recall=0.9067 | best_f1=0.8907
+
+Switching to stage 2 fine-tuning: backbone unfrozen.
+
+[Epoch 009/023] stage=finetune | lr_backbone=6.6744e-05 | lr_head=0.00033372
+  train: loss=0.2701 | acc=0.9125 | f1=0.8994 | precision=0.9002 | recall=0.8989
+  val:   loss=0.2229 | acc=0.9371 | f1=0.9179 | precision=0.9277 | recall=0.9162 | best_f1=0.9179
+
+[Epoch 010/023] stage=finetune | lr_backbone=6.01728e-05 | lr_head=0.000300864
+  train: loss=0.1555 | acc=0.9504 | f1=0.9465 | precision=0.9470 | recall=0.9461
+  val:   loss=0.2217 | acc=0.9432 | f1=0.9195 | precision=0.9303 | recall=0.9151 | best_f1=0.9195
+
+[Epoch 011/023] stage=finetune | lr_backbone=5.34121e-05 | lr_head=0.000267061
+  train: loss=0.1122 | acc=0.9633 | f1=0.9619 | precision=0.9613 | recall=0.9625
+  val:   loss=0.1807 | acc=0.9562 | f1=0.9367 | precision=0.9486 | recall=0.9265 | best_f1=0.9367
+
+[Epoch 012/023] stage=finetune | lr_backbone=4.65879e-05 | lr_head=0.000232939
+  train: loss=0.0840 | acc=0.9740 | f1=0.9741 | precision=0.9742 | recall=0.9740
+  val:   loss=0.1989 | acc=0.9519 | f1=0.9352 | precision=0.9330 | recall=0.9397 | best_f1=0.9367
+
+[Epoch 013/023] stage=finetune | lr_backbone=3.98272e-05 | lr_head=0.000199136
+  train: loss=0.0599 | acc=0.9818 | f1=0.9822 | precision=0.9823 | recall=0.9821
+  val:   loss=0.2267 | acc=0.9531 | f1=0.9367 | precision=0.9449 | recall=0.9319 | best_f1=0.9367
+
+[Epoch 014/023] stage=finetune | lr_backbone=3.3256e-05 | lr_head=0.00016628
+  train: loss=0.0407 | acc=0.9867 | f1=0.9876 | precision=0.9875 | recall=0.9876
+  val:   loss=0.2058 | acc=0.9605 | f1=0.9456 | precision=0.9585 | recall=0.9340 | best_f1=0.9456
+
+[Epoch 015/023] stage=finetune | lr_backbone=2.69967e-05 | lr_head=0.000134984
+  train: loss=0.0351 | acc=0.9883 | f1=0.9891 | precision=0.9888 | recall=0.9894
+  val:   loss=0.2360 | acc=0.9550 | f1=0.9363 | precision=0.9488 | recall=0.9270 | best_f1=0.9456
+
+[Epoch 016/023] stage=finetune | lr_backbone=2.1166e-05 | lr_head=0.00010583
+  train: loss=0.0282 | acc=0.9909 | f1=0.9911 | precision=0.9915 | recall=0.9908
+  val:   loss=0.2353 | acc=0.9587 | f1=0.9435 | precision=0.9524 | recall=0.9357 | best_f1=0.9456
+
+[Epoch 017/023] stage=finetune | lr_backbone=1.58723e-05 | lr_head=7.93617e-05
+  train: loss=0.0215 | acc=0.9935 | f1=0.9947 | precision=0.9948 | recall=0.9946
+  val:   loss=0.2457 | acc=0.9624 | f1=0.9528 | precision=0.9653 | recall=0.9417 | best_f1=0.9528
+
+[Epoch 018/023] stage=finetune | lr_backbone=1.12144e-05 | lr_head=5.60722e-05
+  train: loss=0.0139 | acc=0.9945 | f1=0.9955 | precision=0.9955 | recall=0.9956
+  val:   loss=0.2667 | acc=0.9605 | f1=0.9482 | precision=0.9650 | recall=0.9336 | best_f1=0.9528
+
+[Epoch 019/023] stage=finetune | lr_backbone=7.27903e-06 | lr_head=3.63951e-05
+  train: loss=0.0111 | acc=0.9957 | f1=0.9962 | precision=0.9962 | recall=0.9963
+  val:   loss=0.2699 | acc=0.9642 | f1=0.9534 | precision=0.9706 | recall=0.9388 | best_f1=0.9534
+
+[Epoch 020/023] stage=finetune | lr_backbone=4.13943e-06 | lr_head=2.06972e-05
+  train: loss=0.0111 | acc=0.9956 | f1=0.9965 | precision=0.9965 | recall=0.9965
+  val:   loss=0.2684 | acc=0.9618 | f1=0.9544 | precision=0.9666 | recall=0.9436 | best_f1=0.9544
+
+[Epoch 021/023] stage=finetune | lr_backbone=1.85414e-06 | lr_head=9.27068e-06
+  train: loss=0.0069 | acc=0.9972 | f1=0.9980 | precision=0.9980 | recall=0.9981
+  val:   loss=0.2645 | acc=0.9630 | f1=0.9526 | precision=0.9648 | recall=0.9416 | best_f1=0.9544
+
+[Epoch 022/023] stage=finetune | lr_backbone=4.65703e-07 | lr_head=2.32851e-06
+  train: loss=0.0073 | acc=0.9965 | f1=0.9974 | precision=0.9974 | recall=0.9975
+  val:   loss=0.2954 | acc=0.9636 | f1=0.9511 | precision=0.9629 | recall=0.9406 | best_f1=0.9544
+
+[Epoch 023/023] stage=finetune | lr_backbone=0 | lr_head=0
+  train: loss=0.0085 | acc=0.9962 | f1=0.9970 | precision=0.9971 | recall=0.9968
+  val:   loss=0.2718 | acc=0.9630 | f1=0.9508 | precision=0.9627 | recall=0.9402 | best_f1=0.9544
+
+Findings
+
+This run is not “bad,” but it does start to overfit in late fine-tuning. The clearest sign is that after about epoch 11 to 14, train loss keeps dropping hard while validation loss stops improving and trends upward, even though validation F1/accuracy stay fairly high. In history.csv, val loss is best around epoch 11 (0.1807), while train loss keeps falling toward near-zero by the end.
+
+Your code saves the “best” checkpoint by macro F1 only, not by validation loss. That means best.pt is chosen by the highest val_f1_macro, even if val loss is already getting worse. This is in train.py. So if you were watching loss, the checkpoint policy and your intuition were measuring different things.
+
+A persistent train/val loss gap is expected in your current setup because training sees augmented data while validation is original-only. That is actually the correct split behavior now. The grouped split report shows no source leakage and original-only validation in train_val_split_report.md. So “validation loss higher than training loss” by itself is not the bug.
+
+There is no early stopping. The loop always runs all epochs, even after validation loss has already started to worsen. That is in train.py. So the code currently allows mild late overfitting to continue unchecked.
+
+Why It Happened
+
+Warmup looked healthy. By epoch 8, both train and validation were improving.
+Fine-tuning improved the model further, and the best validation F1 was around epochs 17 to 20.
+After that, the model kept getting more confident on the training set, which drove train loss down, but that extra confidence did not translate into better generalization. Cross-entropy loss is especially sensitive to overconfident mistakes, so val loss can rise even while val accuracy/F1 stay similar.
+So the pattern is:
+
+not catastrophic failure
+not the earlier leakage problem
+mild overfitting plus a checkpoint criterion mismatch 

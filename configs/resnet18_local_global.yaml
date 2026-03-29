@@ -1,0 +1,38 @@
+model:
+  name: resnet18_local_global
+  num_classes: 7
+  input_size: 224
+  pretrained: true
+  dropout: 0.3
+
+training:
+  epochs_stage1: 8
+  epochs_stage2: 15
+  batch_size: 8
+  num_workers: 0
+  seed: 42
+  max_cpu_threads: 2
+  max_interop_threads: 1
+  throttle_seconds_per_batch: 0.0
+
+optimizer:
+  name: adamw
+  backbone_lr: 0.0001
+  head_lr: 0.0005
+  weight_decay: 0.0001
+
+scheduler:
+  name: cosine
+  t_max: 33
+
+loss:
+  name: cross_entropy
+
+data:
+  train_csv: data/splits/train.csv
+  val_csv: data/splits/val.csv
+  image_root: data/processed/augmented/images
+  validation_split: 0.2
+
+paths:
+  output_root: outputs/training/resnet18_local_global_grouped_split
