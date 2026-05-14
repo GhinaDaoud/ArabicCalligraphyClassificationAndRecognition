@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import csv
 import json
 import sys
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -21,7 +22,7 @@ from src.models.local_global_model import (
 )
 from src.training.engine import train_one_epoch, validate_one_epoch
 from src.training.losses import build_loss
-from src.training.optimizer import build_optimizer
+from src.training.optimizer import build_optimizer, set_optimizer_lrs
 from src.training.scheduler import build_scheduler
 from src.utils.checkpoint import load_checkpoint, save_checkpoint
 from src.utils.seed import set_seed
@@ -82,8 +83,8 @@ def split_indices(length: int, validation_split: float, seed: int) -> tuple[list
     return train_indices, val_indices
 
 
-def build_datasets(data_cfg: dict, training_cfg: dict):
-    train_transform = build_train_transforms()
+def build_datasets(data_cfg: dict, training_cfg: dict, augmentation_cfg: dict | None = None):
+    train_transform = build_train_transforms(augmentation_cfg)
     eval_transform = build_eval_transforms()
 
     image_root = resolve_path(data_cfg["image_root"])
@@ -124,13 +125,74 @@ def build_datasets(data_cfg: dict, training_cfg: dict):
     return Subset(full_train, train_indices), Subset(eval_full, val_indices)
 
 
+def iter_sample_records(dataset):
+    if isinstance(dataset, Subset):
+        base_dataset = dataset.dataset
+        for index in dataset.indices:
+            yield base_dataset.samples[index]
+        return
+
+    if hasattr(dataset, "samples"):
+        yield from dataset.samples
+        return
+
+    raise TypeError("Dataset does not expose sample records for class balancing.")
+
+
+def class_counts_by_name(dataset) -> dict[str, int]:
+    counts = Counter()
+    for sample in iter_sample_records(dataset):
+        counts[sample.class_name] += 1
+    return dict(sorted(counts.items()))
+
+
+def compute_class_weights(
+    dataset,
+    class_to_index: dict[str, int],
+    power: float = 1.0,
+) -> torch.Tensor:
+    counts_by_class = class_counts_by_name(dataset)
+    if not counts_by_class:
+        raise ValueError("Cannot compute class weights for an empty dataset.")
+
+    max_count = max(counts_by_class.values())
+    weights = torch.ones(len(class_to_index), dtype=torch.float32)
+    for class_name, class_index in class_to_index.items():
+        count = counts_by_class[class_name]
+        weights[class_index] = float((max_count / max(count, 1)) ** power)
+
+    return weights / weights.mean()
+
+
+def build_weighted_sampler(
+    dataset,
+    class_to_index: dict[str, int],
+    power: float = 1.0,
+) -> WeightedRandomSampler:
+    class_weights = compute_class_weights(dataset, class_to_index=class_to_index, power=power)
+    sample_weights = [
+        float(class_weights[class_to_index[sample.class_name]].item())
+        for sample in iter_sample_records(dataset)
+    ]
+    return WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(sample_weights),
+        replacement=True,
+    )
+
+
 def extract_class_to_index(dataset):
     if hasattr(dataset, "class_to_index"):
         return dataset.class_to_index
     return dataset.dataset.class_to_index
 
 
-def make_dataloaders(train_dataset, val_dataset, training_cfg: dict) -> tuple[DataLoader, DataLoader]:
+def make_dataloaders(
+    train_dataset,
+    val_dataset,
+    training_cfg: dict,
+    train_sampler: WeightedRandomSampler | None = None,
+) -> tuple[DataLoader, DataLoader]:
     batch_size = int(training_cfg["batch_size"])
     num_workers = int(training_cfg.get("num_workers", 0))
     pin_memory = torch.cuda.is_available()
@@ -138,7 +200,8 @@ def make_dataloaders(train_dataset, val_dataset, training_cfg: dict) -> tuple[Da
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=train_sampler is None,
+        sampler=train_sampler,
         num_workers=num_workers,
         pin_memory=pin_memory,
     )
@@ -170,6 +233,57 @@ def dataset_length(dataset) -> int:
     return len(dataset)
 
 
+def metric_value_from_record(record: dict, monitor: str) -> float:
+    if monitor.startswith("train_"):
+        return float(record["train"][monitor.removeprefix("train_")])
+    if monitor.startswith("val_"):
+        return float(record["val"][monitor.removeprefix("val_")])
+    raise ValueError(f"Unsupported monitor: {monitor}")
+
+
+def improvement_threshold(mode: str) -> float:
+    if mode == "max":
+        return float("-inf")
+    if mode == "min":
+        return float("inf")
+    raise ValueError(f"Unsupported mode: {mode}")
+
+
+def is_improvement(current: float, best: float, mode: str, min_delta: float = 0.0) -> bool:
+    if mode == "max":
+        return current > best + min_delta
+    if mode == "min":
+        return current < best - min_delta
+    raise ValueError(f"Unsupported mode: {mode}")
+
+
+def best_metric_from_history(history: list[dict], monitor: str, mode: str) -> float:
+    best = improvement_threshold(mode)
+    for record in history:
+        value = metric_value_from_record(record, monitor)
+        if is_improvement(value, best, mode, min_delta=0.0):
+            best = value
+    return best
+
+
+def patience_state_from_history(
+    history: list[dict],
+    monitor: str,
+    mode: str,
+    min_delta: float,
+) -> tuple[float, int]:
+    best = improvement_threshold(mode)
+    stale_epochs = 0
+    for record in history:
+        value = metric_value_from_record(record, monitor)
+        if is_improvement(value, best, mode, min_delta=min_delta):
+            best = value
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
+    return best, stale_epochs
+
+
 def history_paths(logs_dir: Path) -> tuple[Path, Path]:
     return logs_dir / "history.json", logs_dir / "history.csv"
 
@@ -192,6 +306,13 @@ def write_history(history: list[dict], logs_dir: Path) -> None:
         "stage",
         "lr_backbone",
         "lr_head",
+        "best_f1_so_far",
+        "best_loss_so_far",
+        "monitor_value",
+        "monitor_best_so_far",
+        "early_stopping_stale_epochs",
+        "saved_best_f1",
+        "saved_best_loss",
         "train_loss",
         "train_accuracy",
         "train_precision_macro",
@@ -213,6 +334,13 @@ def write_history(history: list[dict], logs_dir: Path) -> None:
                     "stage": row["stage"],
                     "lr_backbone": row["learning_rates"][0],
                     "lr_head": row["learning_rates"][1],
+                    "best_f1_so_far": row.get("best_f1_so_far"),
+                    "best_loss_so_far": row.get("best_loss_so_far"),
+                    "monitor_value": row.get("monitor_value"),
+                    "monitor_best_so_far": row.get("monitor_best_so_far"),
+                    "early_stopping_stale_epochs": row.get("early_stopping_stale_epochs"),
+                    "saved_best_f1": row.get("saved_best_f1", False),
+                    "saved_best_loss": row.get("saved_best_loss", False),
                     "train_loss": row["train"]["loss"],
                     "train_accuracy": row["train"]["accuracy"],
                     "train_precision_macro": row["train"]["precision_macro"],
@@ -235,6 +363,9 @@ def print_startup_summary(
     train_loader: DataLoader,
     val_loader: DataLoader,
     class_to_index: dict[str, int],
+    imbalance_strategy: str,
+    fine_tuning_cfg: dict,
+    early_stopping_cfg: dict,
 ) -> None:
     print("Training setup")
     print(f"  Device: {device}")
@@ -257,8 +388,26 @@ def print_startup_summary(
     )
     print(
         f"  Scheduler: {config['scheduler']['name']} | "
-        f"t_max={config['scheduler']['t_max']}"
+        f"stage1_t_max={config['training']['epochs_stage1']} | "
+        f"stage2_t_max={config['training']['epochs_stage2']}"
     )
+    print(f"  Scheduler eta_min: {config['scheduler'].get('eta_min', 0.0)}")
+    print(f"  Imbalance handling: {imbalance_strategy}")
+    print(
+        f"  Fine-tuning: mode={fine_tuning_cfg.get('unfreeze_mode', 'full')} | "
+        f"freeze_bn={fine_tuning_cfg.get('freeze_backbone_batchnorm', False)} | "
+        f"stage2_backbone_lr={fine_tuning_cfg.get('backbone_lr', config['optimizer']['backbone_lr'])} | "
+        f"stage2_head_lr={fine_tuning_cfg.get('head_lr', config['optimizer']['head_lr'])}"
+    )
+    if early_stopping_cfg.get("enabled", False):
+        print(
+            f"  Early stopping: enabled | monitor={early_stopping_cfg['monitor']} | "
+            f"mode={early_stopping_cfg['mode']} | patience={early_stopping_cfg['patience']} | "
+            f"min_delta={early_stopping_cfg['min_delta']} | "
+            f"start_after_epoch={early_stopping_cfg.get('start_after_epoch', config['training']['epochs_stage1'])}"
+        )
+    else:
+        print("  Early stopping: disabled")
     print(
         f"  CPU threads: intra_op={torch.get_num_threads()} | "
         f"interop={torch.get_num_interop_threads()}"
@@ -277,6 +426,12 @@ def print_epoch_summary(
     val_metrics: dict[str, float],
     learning_rates: list[float],
     best_f1: float,
+    best_loss: float,
+    monitor_name: str,
+    monitor_value: float,
+    stale_epochs: int,
+    patience: int,
+    early_active: bool,
 ) -> None:
     print(
         f"[Epoch {epoch:03d}/{total_epochs:03d}] "
@@ -297,8 +452,13 @@ def print_epoch_summary(
         f"f1={val_metrics['f1_macro']:.4f} | "
         f"precision={val_metrics['precision_macro']:.4f} | "
         f"recall={val_metrics['recall_macro']:.4f} | "
-        f"best_f1={best_f1:.4f}"
+        f"best_f1={best_f1:.4f} | best_loss={best_loss:.4f}"
     )
+    if patience > 0 and early_active:
+        print(
+            f"  early_stop: monitor={monitor_name} | current={monitor_value:.4f} | "
+            f"stale_epochs={stale_epochs}/{patience}"
+        )
     print("")
 
 
@@ -321,6 +481,26 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
+    imbalance_cfg = config.get("imbalance", {"strategy": "none", "power": 1.0})
+    fine_tuning_cfg = config.get(
+        "fine_tuning",
+        {
+            "unfreeze_mode": "full",
+            "freeze_backbone_batchnorm": False,
+            "backbone_lr": float(config["optimizer"]["backbone_lr"]),
+            "head_lr": float(config["optimizer"]["head_lr"]),
+        },
+    )
+    early_stopping_cfg = config.get(
+        "early_stopping",
+        {
+            "enabled": False,
+            "monitor": "val_f1_macro",
+            "mode": "max",
+            "patience": 0,
+            "min_delta": 0.0,
+        },
+    )
 
     set_seed(int(config["training"]["seed"]))
     configure_runtime(config["training"])
@@ -328,19 +508,48 @@ def main() -> None:
     train_dataset, val_dataset = build_datasets(
         data_cfg=config["data"],
         training_cfg=config["training"],
+        augmentation_cfg=config.get("augmentation", {}),
     )
     class_to_index = extract_class_to_index(train_dataset)
     config["model"]["num_classes"] = len(class_to_index)
+
+    imbalance_strategy = str(imbalance_cfg.get("strategy", "none")).strip().lower()
+    imbalance_power = float(imbalance_cfg.get("power", 1.0))
+    train_sampler = None
+    class_weights = None
+    if imbalance_strategy == "weighted_sampler":
+        train_sampler = build_weighted_sampler(
+            train_dataset,
+            class_to_index=class_to_index,
+            power=imbalance_power,
+        )
+    elif imbalance_strategy == "class_weights":
+        class_weights = compute_class_weights(
+            train_dataset,
+            class_to_index=class_to_index,
+            power=imbalance_power,
+        )
+    elif imbalance_strategy != "none":
+        raise ValueError(f"Unsupported imbalance strategy: {imbalance_strategy}")
 
     train_loader, val_loader = make_dataloaders(
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         training_cfg=config["training"],
+        train_sampler=train_sampler,
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_model(config["model"]).to(device)
-    criterion = build_loss(config["loss"]["name"])
+    if hasattr(model, "set_backbone_batchnorm_frozen"):
+        model.set_backbone_batchnorm_frozen(bool(fine_tuning_cfg.get("freeze_backbone_batchnorm", False)))
+    if class_weights is not None:
+        class_weights = class_weights.to(device)
+    criterion = build_loss(
+        config["loss"]["name"],
+        class_weights=class_weights,
+        label_smoothing=float(config.get("loss", {}).get("label_smoothing", 0.0)),
+    )
     optimizer = build_optimizer(
         model=model,
         backbone_lr=float(config["optimizer"]["backbone_lr"]),
@@ -348,11 +557,14 @@ def main() -> None:
         weight_decay=float(config["optimizer"]["weight_decay"]),
     )
 
-    total_epochs = int(config["training"]["epochs_stage1"]) + int(config["training"]["epochs_stage2"])
+    epochs_stage1 = int(config["training"]["epochs_stage1"])
+    epochs_stage2 = int(config["training"]["epochs_stage2"])
+    total_epochs = epochs_stage1 + epochs_stage2
     scheduler = build_scheduler(
         optimizer=optimizer,
         name=config["scheduler"]["name"],
-        t_max=max(1, total_epochs),
+        t_max=max(1, epochs_stage1 if epochs_stage1 > 0 else epochs_stage2),
+        eta_min=float(config["scheduler"].get("eta_min", 0.0)),
     )
 
     output_root = Path(resolve_path(config["paths"]["output_root"]))
@@ -369,12 +581,36 @@ def main() -> None:
         train_loader=train_loader,
         val_loader=val_loader,
         class_to_index=class_to_index,
+        imbalance_strategy=imbalance_strategy,
+        fine_tuning_cfg=fine_tuning_cfg,
+        early_stopping_cfg=early_stopping_cfg,
     )
 
     model.freeze_backbone()
-    best_f1 = float("-inf")
     history = load_history(logs_dir)
+    best_f1 = best_metric_from_history(history, monitor="val_f1_macro", mode="max")
+    best_loss = best_metric_from_history(history, monitor="val_loss", mode="min")
+    if best_f1 == float("-inf"):
+        best_f1 = float("-inf")
+    if best_loss == float("inf"):
+        best_loss = float("inf")
+
+    early_monitor = str(early_stopping_cfg.get("monitor", "val_f1_macro"))
+    early_mode = str(early_stopping_cfg.get("mode", "max")).lower()
+    early_patience = int(early_stopping_cfg.get("patience", 0))
+    early_min_delta = float(early_stopping_cfg.get("min_delta", 0.0))
+    early_start_after_epoch = int(
+        early_stopping_cfg.get("start_after_epoch", config["training"].get("epochs_stage1", 0))
+    )
+    early_enabled = bool(early_stopping_cfg.get("enabled", False)) and early_patience > 0
+    early_best, stale_epochs = patience_state_from_history(
+        history,
+        monitor=early_monitor,
+        mode=early_mode,
+        min_delta=early_min_delta,
+    )
     start_epoch = 0
+    resumed_from_checkpoint = False
 
     resume_path = args.resume
     if resume_path is None:
@@ -390,21 +626,52 @@ def main() -> None:
             map_location=device,
         )
         start_epoch = int(checkpoint.get("epoch", 0))
+        resumed_from_checkpoint = True
         checkpoint_metrics = checkpoint.get("metrics", {})
-        best_f1 = float(checkpoint_metrics.get("val", {}).get("f1_macro", best_f1))
+        best_f1 = max(best_f1, float(checkpoint_metrics.get("val", {}).get("f1_macro", float("-inf"))))
+        best_loss = min(best_loss, float(checkpoint_metrics.get("val", {}).get("loss", float("inf"))))
         print(f"Resumed from checkpoint: {resume_path}")
         print(f"  Starting at epoch: {start_epoch + 1}")
-        print(f"  Best F1 so far: {best_f1:.4f}\n")
+        print(f"  Best F1 so far: {best_f1:.4f}")
+        if best_loss < float("inf"):
+            print(f"  Best loss so far: {best_loss:.4f}")
+        print("")
 
-    if start_epoch >= int(config["training"]["epochs_stage1"]):
-        model.unfreeze_backbone()
+    if start_epoch >= epochs_stage1:
+        if hasattr(model, "set_finetune_mode"):
+            model.set_finetune_mode(str(fine_tuning_cfg.get("unfreeze_mode", "full")))
+        else:
+            model.unfreeze_backbone()
+        if not resumed_from_checkpoint:
+            set_optimizer_lrs(
+                optimizer,
+                backbone_lr=float(fine_tuning_cfg.get("backbone_lr", config["optimizer"]["backbone_lr"])),
+                head_lr=float(fine_tuning_cfg.get("head_lr", config["optimizer"]["head_lr"])),
+            )
 
     try:
         for epoch in range(start_epoch, total_epochs):
-            stage_name = "warmup" if epoch < int(config["training"]["epochs_stage1"]) else "finetune"
-            if epoch == int(config["training"]["epochs_stage1"]):
-                model.unfreeze_backbone()
-                print("Switching to stage 2 fine-tuning: backbone unfrozen.\n")
+            stage_name = "warmup" if epoch < epochs_stage1 else "finetune"
+            if epoch == epochs_stage1:
+                if hasattr(model, "set_finetune_mode"):
+                    model.set_finetune_mode(str(fine_tuning_cfg.get("unfreeze_mode", "full")))
+                else:
+                    model.unfreeze_backbone()
+                set_optimizer_lrs(
+                    optimizer,
+                    backbone_lr=float(fine_tuning_cfg.get("backbone_lr", config["optimizer"]["backbone_lr"])),
+                    head_lr=float(fine_tuning_cfg.get("head_lr", config["optimizer"]["head_lr"])),
+                )
+                scheduler = build_scheduler(
+                    optimizer=optimizer,
+                    name=config["scheduler"]["name"],
+                    t_max=max(1, epochs_stage2),
+                    eta_min=float(config["scheduler"].get("eta_min", 0.0)),
+                )
+                print(
+                    "Switching to stage 2 fine-tuning: "
+                    f"mode={fine_tuning_cfg.get('unfreeze_mode', 'full')}.\n"
+                )
 
             train_metrics = train_one_epoch(
                 model=model,
@@ -428,6 +695,58 @@ def main() -> None:
             )
             scheduler.step()
             current_lrs = optimizer_lrs(optimizer)
+            monitor_payload = {
+                **{f"train_{key}": value for key, value in train_metrics.items() if not isinstance(value, list)},
+                **{f"val_{key}": value for key, value in val_metrics.items() if not isinstance(value, list)},
+            }
+            monitor_value = float(monitor_payload[early_monitor])
+
+            saved_best_f1 = False
+            saved_best_loss = False
+            if val_metrics["f1_macro"] > best_f1:
+                best_f1 = float(val_metrics["f1_macro"])
+                save_checkpoint(
+                    path=checkpoints_dir / "best.pt",
+                    model=model,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    epoch=epoch + 1,
+                    metrics={
+                        "epoch": epoch + 1,
+                        "stage": stage_name,
+                        "learning_rates": current_lrs,
+                        "train": metrics_for_logging(train_metrics),
+                        "val": metrics_for_logging(val_metrics),
+                    },
+                    config=config,
+                )
+                saved_best_f1 = True
+
+            if val_metrics["loss"] < best_loss:
+                best_loss = float(val_metrics["loss"])
+                save_checkpoint(
+                    path=checkpoints_dir / "best_loss.pt",
+                    model=model,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    epoch=epoch + 1,
+                    metrics={
+                        "epoch": epoch + 1,
+                        "stage": stage_name,
+                        "learning_rates": current_lrs,
+                        "train": metrics_for_logging(train_metrics),
+                        "val": metrics_for_logging(val_metrics),
+                    },
+                    config=config,
+                )
+                saved_best_loss = True
+
+            if epoch + 1 >= early_start_after_epoch:
+                if is_improvement(monitor_value, early_best, early_mode, min_delta=early_min_delta):
+                    early_best = monitor_value
+                    stale_epochs = 0
+                else:
+                    stale_epochs += 1
 
             epoch_record = {
                 "epoch": epoch + 1,
@@ -435,6 +754,13 @@ def main() -> None:
                 "learning_rates": current_lrs,
                 "train": metrics_for_logging(train_metrics),
                 "val": metrics_for_logging(val_metrics),
+                "best_f1_so_far": best_f1,
+                "best_loss_so_far": best_loss,
+                "monitor_value": monitor_value,
+                "monitor_best_so_far": early_best,
+                "early_stopping_stale_epochs": stale_epochs,
+                "saved_best_f1": saved_best_f1,
+                "saved_best_loss": saved_best_loss,
             }
             history.append(epoch_record)
             write_history(history, logs_dir)
@@ -449,18 +775,6 @@ def main() -> None:
                 config=config,
             )
 
-            if val_metrics["f1_macro"] > best_f1:
-                best_f1 = float(val_metrics["f1_macro"])
-                save_checkpoint(
-                    path=checkpoints_dir / "best.pt",
-                    model=model,
-                    optimizer=optimizer,
-                    scheduler=scheduler,
-                    epoch=epoch + 1,
-                    metrics=epoch_record,
-                    config=config,
-                )
-
             print_epoch_summary(
                 epoch=epoch + 1,
                 total_epochs=total_epochs,
@@ -469,7 +783,20 @@ def main() -> None:
                 val_metrics=val_metrics,
                 learning_rates=current_lrs,
                 best_f1=best_f1,
+                best_loss=best_loss,
+                monitor_name=early_monitor,
+                monitor_value=monitor_value,
+                stale_epochs=stale_epochs,
+                patience=early_patience if early_enabled else 0,
+                early_active=(epoch + 1 >= early_start_after_epoch),
             )
+
+            if early_enabled and epoch + 1 >= early_start_after_epoch and stale_epochs >= early_patience:
+                print(
+                    f"Early stopping triggered after {stale_epochs} stale epoch(s) "
+                    f"on {early_monitor}."
+                )
+                break
     except KeyboardInterrupt:
         print("\nTraining interrupted. Resume later from latest.pt.")
     finally:

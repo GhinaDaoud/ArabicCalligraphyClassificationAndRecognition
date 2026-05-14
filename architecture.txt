@@ -274,23 +274,7 @@ Training setup
 [Epoch 002/023] stage=warmup | lr_backbone=9.81459e-05 | lr_head=0.000490729
   train: loss=0.4131 | acc=0.8622 | f1=0.8346 | precision=0.8399 | recall=0.8300
   val:   loss=0.3360 | acc=0.8840 | f1=0.8391 | precision=0.8436 | recall=0.8626 | best_f1=0.8391
-
-[Epoch 003/023] stage=warmup | lr_backbone=9.58606e-05 | lr_head=0.000479303
-  train: loss=0.3473 | acc=0.8837 | f1=0.8622 | precision=0.8648 | recall=0.8601
-  val:   loss=0.2343 | acc=0.9254 | f1=0.8863 | precision=0.9009 | recall=0.8735 | best_f1=0.8863
-
-[Epoch 004/023] stage=warmup | lr_backbone=9.2721e-05 | lr_head=0.000463605
-  train: loss=0.2954 | acc=0.8977 | f1=0.8794 | precision=0.8823 | recall=0.8771
-  val:   loss=0.2434 | acc=0.9173 | f1=0.8649 | precision=0.8544 | recall=0.8799 | best_f1=0.8863
-
-[Epoch 005/023] stage=warmup | lr_backbone=8.87856e-05 | lr_head=0.000443928
-  train: loss=0.2859 | acc=0.9007 | f1=0.8846 | precision=0.8858 | recall=0.8837
-  val:   loss=0.2543 | acc=0.9235 | f1=0.8841 | precision=0.9016 | recall=0.8738 | best_f1=0.8863
-
-[Epoch 006/023] stage=warmup | lr_backbone=8.41277e-05 | lr_head=0.000420638
-  train: loss=0.2645 | acc=0.9106 | f1=0.8951 | precision=0.8968 | recall=0.8940
-  val:   loss=0.2356 | acc=0.9229 | f1=0.8793 | precision=0.8730 | recall=0.8905 | best_f1=0.8863
-
+....
 [Epoch 007/023] stage=warmup | lr_backbone=7.8834e-05 | lr_head=0.00039417
   train: loss=0.2382 | acc=0.9154 | f1=0.9015 | precision=0.9021 | recall=0.9010
   val:   loss=0.2520 | acc=0.9173 | f1=0.8674 | precision=0.8585 | recall=0.8907 | best_f1=0.8863
@@ -308,71 +292,18 @@ Switching to stage 2 fine-tuning: backbone unfrozen.
 [Epoch 010/023] stage=finetune | lr_backbone=6.01728e-05 | lr_head=0.000300864
   train: loss=0.1555 | acc=0.9504 | f1=0.9465 | precision=0.9470 | recall=0.9461
   val:   loss=0.2217 | acc=0.9432 | f1=0.9195 | precision=0.9303 | recall=0.9151 | best_f1=0.9195
-
-[Epoch 011/023] stage=finetune | lr_backbone=5.34121e-05 | lr_head=0.000267061
-  train: loss=0.1122 | acc=0.9633 | f1=0.9619 | precision=0.9613 | recall=0.9625
-  val:   loss=0.1807 | acc=0.9562 | f1=0.9367 | precision=0.9486 | recall=0.9265 | best_f1=0.9367
-
-[Epoch 012/023] stage=finetune | lr_backbone=4.65879e-05 | lr_head=0.000232939
-  train: loss=0.0840 | acc=0.9740 | f1=0.9741 | precision=0.9742 | recall=0.9740
-  val:   loss=0.1989 | acc=0.9519 | f1=0.9352 | precision=0.9330 | recall=0.9397 | best_f1=0.9367
-
-[Epoch 013/023] stage=finetune | lr_backbone=3.98272e-05 | lr_head=0.000199136
-  train: loss=0.0599 | acc=0.9818 | f1=0.9822 | precision=0.9823 | recall=0.9821
-  val:   loss=0.2267 | acc=0.9531 | f1=0.9367 | precision=0.9449 | recall=0.9319 | best_f1=0.9367
-
-[Epoch 014/023] stage=finetune | lr_backbone=3.3256e-05 | lr_head=0.00016628
-  train: loss=0.0407 | acc=0.9867 | f1=0.9876 | precision=0.9875 | recall=0.9876
-  val:   loss=0.2058 | acc=0.9605 | f1=0.9456 | precision=0.9585 | recall=0.9340 | best_f1=0.9456
-
-[Epoch 015/023] stage=finetune | lr_backbone=2.69967e-05 | lr_head=0.000134984
-  train: loss=0.0351 | acc=0.9883 | f1=0.9891 | precision=0.9888 | recall=0.9894
-  val:   loss=0.2360 | acc=0.9550 | f1=0.9363 | precision=0.9488 | recall=0.9270 | best_f1=0.9456
-
-[Epoch 016/023] stage=finetune | lr_backbone=2.1166e-05 | lr_head=0.00010583
-  train: loss=0.0282 | acc=0.9909 | f1=0.9911 | precision=0.9915 | recall=0.9908
-  val:   loss=0.2353 | acc=0.9587 | f1=0.9435 | precision=0.9524 | recall=0.9357 | best_f1=0.9456
-
-[Epoch 017/023] stage=finetune | lr_backbone=1.58723e-05 | lr_head=7.93617e-05
-  train: loss=0.0215 | acc=0.9935 | f1=0.9947 | precision=0.9948 | recall=0.9946
-  val:   loss=0.2457 | acc=0.9624 | f1=0.9528 | precision=0.9653 | recall=0.9417 | best_f1=0.9528
-
-[Epoch 018/023] stage=finetune | lr_backbone=1.12144e-05 | lr_head=5.60722e-05
-  train: loss=0.0139 | acc=0.9945 | f1=0.9955 | precision=0.9955 | recall=0.9956
-  val:   loss=0.2667 | acc=0.9605 | f1=0.9482 | precision=0.9650 | recall=0.9336 | best_f1=0.9528
-
-[Epoch 019/023] stage=finetune | lr_backbone=7.27903e-06 | lr_head=3.63951e-05
-  train: loss=0.0111 | acc=0.9957 | f1=0.9962 | precision=0.9962 | recall=0.9963
-  val:   loss=0.2699 | acc=0.9642 | f1=0.9534 | precision=0.9706 | recall=0.9388 | best_f1=0.9534
-
-[Epoch 020/023] stage=finetune | lr_backbone=4.13943e-06 | lr_head=2.06972e-05
-  train: loss=0.0111 | acc=0.9956 | f1=0.9965 | precision=0.9965 | recall=0.9965
-  val:   loss=0.2684 | acc=0.9618 | f1=0.9544 | precision=0.9666 | recall=0.9436 | best_f1=0.9544
-
-[Epoch 021/023] stage=finetune | lr_backbone=1.85414e-06 | lr_head=9.27068e-06
-  train: loss=0.0069 | acc=0.9972 | f1=0.9980 | precision=0.9980 | recall=0.9981
-  val:   loss=0.2645 | acc=0.9630 | f1=0.9526 | precision=0.9648 | recall=0.9416 | best_f1=0.9544
-
-[Epoch 022/023] stage=finetune | lr_backbone=4.65703e-07 | lr_head=2.32851e-06
-  train: loss=0.0073 | acc=0.9965 | f1=0.9974 | precision=0.9974 | recall=0.9975
-  val:   loss=0.2954 | acc=0.9636 | f1=0.9511 | precision=0.9629 | recall=0.9406 | best_f1=0.9544
-
+....
 [Epoch 023/023] stage=finetune | lr_backbone=0 | lr_head=0
   train: loss=0.0085 | acc=0.9962 | f1=0.9970 | precision=0.9971 | recall=0.9968
   val:   loss=0.2718 | acc=0.9630 | f1=0.9508 | precision=0.9627 | recall=0.9402 | best_f1=0.9544
 
 Findings
-
 This run is not “bad,” but it does start to overfit in late fine-tuning. The clearest sign is that after about epoch 11 to 14, train loss keeps dropping hard while validation loss stops improving and trends upward, even though validation F1/accuracy stay fairly high. In history.csv, val loss is best around epoch 11 (0.1807), while train loss keeps falling toward near-zero by the end.
-
 Your code saves the “best” checkpoint by macro F1 only, not by validation loss. That means best.pt is chosen by the highest val_f1_macro, even if val loss is already getting worse. This is in train.py. So if you were watching loss, the checkpoint policy and your intuition were measuring different things.
-
 A persistent train/val loss gap is expected in your current setup because training sees augmented data while validation is original-only. That is actually the correct split behavior now. The grouped split report shows no source leakage and original-only validation in train_val_split_report.md. So “validation loss higher than training loss” by itself is not the bug.
-
 There is no early stopping. The loop always runs all epochs, even after validation loss has already started to worsen. That is in train.py. So the code currently allows mild late overfitting to continue unchecked.
 
 Why It Happened
-
 Warmup looked healthy. By epoch 8, both train and validation were improving.
 Fine-tuning improved the model further, and the best validation F1 was around epochs 17 to 20.
 After that, the model kept getting more confident on the training set, which drove train loss down, but that extra confidence did not translate into better generalization. Cross-entropy loss is especially sensitive to overconfident mistakes, so val loss can rise even while val accuracy/F1 stay similar.
@@ -381,3 +312,250 @@ So the pattern is:
 not catastrophic failure
 not the earlier leakage problem
 mild overfitting plus a checkpoint criterion mismatch 
+
+--> FIX WORK:
+1- train transforms are too bare: only toTensor + normalization; need to add more augmentation to make training harder and reduce overfitting
+2- training keeps running through all epochs with no early stopping
+3- best model weights are chosen by macro F1, not by validation loss; need to change checkpoint policy to save best.pt by lowest val loss, not highest val F1
+4- no evaluation, confusion matrix and inference
+
+
+--- Training 3 ---
+**Validation Split**
+
+Yes, that validation distribution is reasonable.
+
+Your split script is doing a grouped, class-wise split by source path, not a balanced validation set. It takes about `20%` of each class’s original source groups into validation in [create_grouped_train_val_split.py:51](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/scripts/splits/create_grouped_train_val_split.py#L51) and [create_grouped_train_val_split.py:72](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/scripts/splits/create_grouped_train_val_split.py#L72). That is why the report shows:
+- `Naskh: 805`
+- `Thuluth: 382`
+- much fewer for the others
+
+Those numbers are basically the original class imbalance reflected into validation:
+- `Naskh`: `4025 -> 805`
+- `Thuluth`: `1911 -> 382`
+- `Diwani`: `657 -> 131`
+- `Kufic`: `292 -> 58`
+- `Muhaqaq`: `207 -> 41`
+
+That makes sense if you want honest evaluation on the data as it really exists. It is not balanced, but it is realistic. The tradeoff is that minority-class metrics are noisier because `Kufic` has only `58` validation samples and `Muhaqaq` only `41` in [train_val_split_report.md](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/data/metadata/train_val_split_report.md). That is exactly why macro F1 matters more than accuracy here.
+
+**What Fine-Tuning Actually Does**
+
+Fine-tuning is not a new branch in the architecture. It is a change in which weights are allowed to update.
+
+In your model, the trainable parts are:
+- backbone: ResNet18 in [local_global_model.py:24](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L24)
+- local branch head in [local_global_model.py:25](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L25)
+- global pooling branch in [local_global_model.py:29](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L29)
+- fusion classifier in [local_global_model.py:30](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L30)
+
+During warmup, the backbone is frozen in [train.py:562](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/training/train.py#L562). So only the new heads learn.
+
+When fine-tuning starts, the backbone is unfrozen in [train.py:615](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/training/train.py#L615). That means the ResNet stem and layers now also adapt to your Arabic calligraphy data with a smaller learning rate. So stage 2 is: same architecture, more parameters become trainable.
+
+**History Analysis**
+
+The important point is this: fine-tuning is not broken. It helps first, then it starts overfitting.
+
+What the log says:
+- Warmup was healthy. Train loss went from `0.7211` to `0.2363`, and val loss went from `0.3342` to `0.2547` by epoch 8 in [history.csv:2](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/outputs/training/resnet18_local_global_grouped_split/logs/history.csv#L2) and [history.csv:9](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/outputs/training/resnet18_local_global_grouped_split/logs/history.csv#L9).
+- Right after unfreezing, fine-tuning improved validation clearly. At epoch 9, val F1 jumped to `0.9067`, and at epoch 10 val loss reached its best value `0.2056` in [history.csv:10](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/outputs/training/resnet18_local_global_grouped_split/logs/history.csv#L10) and [history.csv:11](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/outputs/training/resnet18_local_global_grouped_split/logs/history.csv#L11).
+- Later, train loss kept collapsing toward zero, while val loss stopped improving and mostly drifted upward. By epoch 22, train loss was `0.0094` while val loss was `0.2332` in [history.csv:23](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/outputs/training/resnet18_local_global_grouped_split/logs/history.csv#L23).
+
+So the pattern is:
+- epochs `1-10`: good learning
+- epochs `10-12`: still useful fine-tuning
+- after that: stronger fit to training data than to validation
+
+But there is one nuance that matters a lot:
+- val loss got worse after epoch 10
+- val macro F1 kept improving until epoch 22
+
+That means later fine-tuning improved classification decisions, but worsened calibration. Cross-entropy loss punishes a few overconfident mistakes heavily. So the model can classify more samples correctly overall while still having higher validation loss.
+
+That is exactly what happened here.
+
+**What I Think**
+
+The behavior is not “something is wrong with fine-tuning.” The more accurate statement is:
+
+- the beginning of fine-tuning is useful and necessary
+- the late part of fine-tuning is over-specializing the backbone
+- the model becomes better at class separation, but more overconfident on the remaining hard mistakes
+
+That also matches your evaluation:
+- `best.pt` gives strong macro F1 around `0.9523`
+- `best_loss.pt` is worse overall, about `0.9186`
+
+So for this project:
+- selecting by macro F1 makes sense, because the dataset is imbalanced
+- selecting by loss would favor a more conservative but weaker classifier
+
+**About The Figures**
+
+The figures are showing a real phenomenon, not a plotting mistake:
+- validation distribution is imbalanced, and that is expected
+- fine-tuning helps first
+- late fine-tuning causes mild overfitting and confidence inflation
+- the hardest confusion region is around `Thuluth`, `Diwani`, and `Kufic`
+
+If you want, next I can help you turn this exact interpretation into report-ready wording for the professor.
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+**What’s happening**
+
+This is real late-stage overfitting during fine-tuning, but with one important nuance: it is overfitting in **loss/calibration** more than in **macro-F1**.
+
+From your history:
+- best `val_loss` happens very early in fine-tuning: epoch 10, about `0.2056`
+- best `val_f1_macro` happens much later: epoch 22, about `0.9523`
+- meanwhile `train_loss` collapses from `0.2517` at epoch 9 to `0.0094` at epoch 22
+
+So the backbone is learning more and more training-specific confidence after unfreezing. It still improves classification boundaries a bit, but it becomes too confident on the remaining validation mistakes. That is why F1 can still rise while validation loss stops improving.
+
+This also explains why waiting to epoch 23 feels wasteful to you. If your goal is a stable model, not the absolute highest late-epoch F1, then your current fine-tuning policy is too long and too aggressive.
+
+**Why this is happening in your current setup**
+
+The biggest causes are:
+
+- You unfreeze the **entire backbone at once** in [train.py:615](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/training/train.py#L615). That means stem, early layers, mid layers, and deep layers all start adapting to your dataset immediately.
+- The backbone learning rate is still relatively strong for full unfreezing on this dataset: `1e-4` in [resnet18_local_global.yaml](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/configs/resnet18_local_global.yaml).
+- Your train set is not huge in terms of unique real sources. The split report shows `6491` unique training sources, but `8778` training rows, meaning many are offline augmented siblings, not new real samples, in [train_val_split_report.md](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/data/metadata/train_val_split_report.md).
+- Train-time transforms are currently almost empty in [transforms.py:7](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/datasets/transforms.py#L7). So once fine-tuning starts, the model keeps seeing the same fixed offline-augmented images and can memorize them.
+- If you are using `weighted_sampler`, that can amplify memorization further by repeatedly drawing the same minority-class sources.
+
+So the issue is not that fine-tuning is conceptually wrong. The issue is that your current fine-tuning setup is too broad and too unconstrained.
+
+**What fine-tuning is actually doing here**
+
+Architecturally, nothing new is added during fine-tuning. The model still has:
+- backbone in [local_global_model.py:24](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L24)
+- local head in [local_global_model.py:25](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L25)
+- global head in [local_global_model.py:29](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L29)
+- fusion classifier in [local_global_model.py:30](/abs/path/c:/Users/user/OneDrive%20-%20American%20University%20of%20Beirut/Courses/NeuralNetworks-EECE693/Project/ArabicCalligraphyClassificationAndRecognition/src/models/local_global_model.py#L30)
+
+Warmup:
+- only the new heads learn
+
+Fine-tuning:
+- the pretrained ResNet layers also start changing
+
+So the “fine-tuning section” is not a separate branch. It is the same model, with many more parameters now allowed to move.
+
+**Best solutions to try, in order**
+
+1. Shorten stage 2 aggressively.
+- Your logs suggest the useful part of fine-tuning happens very early.
+- A realistic stage-2 budget is probably `3 to 6` epochs, not `15`.
+
+2. Lower the backbone LR a lot when unfreezing.
+- `1e-4` for full-backbone unfreezing is likely too high here.
+- The most likely stable range is closer to `1e-5` or `2e-5`.
+
+3. Do not unfreeze the whole backbone at once.
+- Unfreeze only `layer4` first.
+- If needed later, unfreeze `layer3`.
+- Keep stem, `layer1`, and `layer2` frozen.
+
+4. Freeze BatchNorm behavior during fine-tuning.
+- With batch size `8`, updating all BN statistics in the backbone can be noisy and can hurt stability.
+
+5. Add mild online augmentation during training.
+- Right now the model mostly sees a fixed offline augmented dataset.
+- Fresh, mild online variation usually stabilizes fine-tuning.
+
+6. Reconsider imbalance handling.
+- If you are using a weighted sampler, it may be making repeated-source memorization worse.
+- Class-weighted loss is often more stable than aggressive resampling in this kind of setup.
+
+7. Add light regularization in stage 2 only.
+- label smoothing around `0.05`
+- slightly higher dropout
+- possibly a bit more weight decay
+
+**What I would do next**
+
+If the goal is “stable training and stop early,” the best next protocol is:
+
+- keep warmup mostly as is
+- fine-tune only the upper backbone, not the whole ResNet
+- reduce backbone LR sharply
+- monitor `val_loss` for stopping
+- still save `best_f1` separately for reporting
+
+That would likely stop the run much earlier and make the curves look more sane.
+
+**Important clarification**
+
+If your main report metric is macro-F1, then the later fine-tuning epochs are not literally useless, because they did improve macro-F1. But if your goal is a stable, well-behaved model with less overfitting and shorter training, then yes: your current stage-2 setup is more aggressive than it should be.
+
+If you want, next I can help you choose the exact fine-tuning policy before touching code:
+- `shorter stage2`
+- `smaller backbone LR`
+- `partial unfreezing`
+- `monitor choice: val_loss vs val_f1`
+
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+What changed: FINETUNE FIX1
+
+partial fine-tuning controls were added in backbone.py (line 53) and local_global_model.py (line 55)
+backbone BatchNorm freezing was added in backbone.py (line 71) and applied during training in local_global_model.py (line 63)
+light online train augmentation was added in transforms.py (line 8)
+stage-2 LR switching was added in optimizer.py and used in train.py (line 639)
+the training loop now uses a configurable fine-tuning policy in train.py (line 482) and switches stage 2 behavior in train.py (line 650)
+New default policy in resnet18_local_global.yaml:
+
+shorter stage 2: 8 epochs
+early stopping on val_loss
+partial unfreezing: layer3_layer4
+freeze backbone BN stats
+stage-2 LRs reduced to 2e-5 backbone and 2e-4 head
+label smoothing 0.05
+imbalance handling changed to class_weights with gentler power: 0.5
+online augmentation enabled
+new output root: outputs/training/resnet18_local_global_stable_finetune
+Old behavior is still possible:
+
+set fine_tuning.unfreeze_mode: full
+set imbalance.strategy: weighted_sampler
+disable online augmentation
+change early stopping monitor back to val_f1_macro
+I did not run a full training job. I syntax-checked the modified files and verified the training entry point loads correctly in your pytorch_course environment.
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+FINETUNE FIX 2 
+What changed:
+
+train.py
+training loss still uses class-weighted + label-smoothed cross-entropy
+validation loss is now plain cross-entropy for cleaner monitoring
+scheduler now gets eta_min
+scheduler.py
+added eta_min support
+new config: resnet18_local_global_lowval.yaml
+The new config does this:
+
+keeps warmup at 8 epochs
+reduces fine-tuning to max 6 epochs
+early stopping on val_loss
+only unfreezes layer4
+freezes backbone BatchNorm stats
+lowers stage-2 LR to:
+backbone 1e-5
+head 1e-4
+uses gentler class weighting: power = 0.35
+keeps mild online augmentation
+writes to a new folder:
+outputs/training/resnet18_local_global_lowval
+Old code and old configs are still there. I did not remove the previous training path.
+In train.py, training uses class-weighted + label-smoothed cross-entropy, while validation uses plain cross-entropy.
+About val_loss being lower than train_loss from the start:
+Train images now get online augmentation in transforms.py.
+Validation is clean and deterministic.

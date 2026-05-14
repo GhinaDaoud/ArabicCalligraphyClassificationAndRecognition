@@ -21,7 +21,6 @@ early_stopping:
   mode: min
   patience: 2
   min_delta: 0.0015
-  start_after_epoch: 9
 
 optimizer:
   name: adamw
@@ -30,14 +29,15 @@ optimizer:
   weight_decay: 0.0001
 
 fine_tuning:
-  unfreeze_mode: layer3_layer4
+  unfreeze_mode: layer4
   freeze_backbone_batchnorm: true
-  backbone_lr: 0.00002
-  head_lr: 0.0002
+  backbone_lr: 0.00001
+  head_lr: 0.0001
 
 scheduler:
   name: cosine
   t_max: 8
+  eta_min: 0.000001
 
 loss:
   name: cross_entropy
@@ -45,17 +45,17 @@ loss:
 
 imbalance:
   strategy: class_weights
-  power: 0.5
+  power: 0.35
 
 augmentation:
   enable_online_aug: true
-  rotation: 4.0
-  translate: 0.02
-  scale_min: 0.98
-  scale_max: 1.02
-  brightness: 0.08
-  contrast: 0.08
-  blur_prob: 0.12
+  rotation: 3.0
+  translate: 0.015
+  scale_min: 0.985
+  scale_max: 1.015
+  brightness: 0.06
+  contrast: 0.06
+  blur_prob: 0.08
 
 data:
   train_csv: data/splits/train.csv
@@ -64,4 +64,4 @@ data:
   validation_split: 0.2
 
 paths:
-  output_root: outputs/training/resnet18_local_global_stable_finetune
+  output_root: outputs/training/resnet18_local_global_lowval

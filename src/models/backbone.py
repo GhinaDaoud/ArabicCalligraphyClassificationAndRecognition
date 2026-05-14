@@ -44,3 +44,33 @@ class ResNet18FeatureBackbone(nn.Module):
     def set_trainable(self, trainable: bool) -> None:
         for parameter in self.parameters():
             parameter.requires_grad = trainable
+
+    @staticmethod
+    def _set_module_trainable(module: nn.Module, trainable: bool) -> None:
+        for parameter in module.parameters():
+            parameter.requires_grad = trainable
+
+    def set_trainable_stage(self, mode: str) -> None:
+        mode = mode.strip().lower()
+        self.set_trainable(False)
+
+        if mode == "none":
+            return
+        if mode == "full":
+            self.set_trainable(True)
+            return
+        if mode == "layer4":
+            self._set_module_trainable(self.layer4, True)
+            return
+        if mode in {"layer3_layer4", "layer3+layer4"}:
+            self._set_module_trainable(self.layer3, True)
+            self._set_module_trainable(self.layer4, True)
+            return
+        raise ValueError(f"Unsupported fine-tuning mode: {mode}")
+
+    def freeze_batchnorm_stats(self) -> None:
+        for module in self.modules():
+            if isinstance(module, nn.BatchNorm2d):
+                module.eval()
+                for parameter in module.parameters():
+                    parameter.requires_grad = False

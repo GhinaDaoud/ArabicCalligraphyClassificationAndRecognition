@@ -34,6 +34,7 @@ class ResNet18LocalGlobalClassifier(nn.Module):
             hidden_dim=hidden_dim,
             dropout=dropout,
         )
+        self._freeze_backbone_batchnorm = False
 
     def forward_features(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         features = self.backbone(x)
@@ -46,10 +47,24 @@ class ResNet18LocalGlobalClassifier(nn.Module):
         return self.classifier(local_features, global_features)
 
     def freeze_backbone(self) -> None:
-        self.backbone.set_trainable(False)
+        self.backbone.set_trainable_stage("none")
 
     def unfreeze_backbone(self) -> None:
-        self.backbone.set_trainable(True)
+        self.backbone.set_trainable_stage("full")
+
+    def set_finetune_mode(self, mode: str) -> None:
+        self.backbone.set_trainable_stage(mode)
+
+    def set_backbone_batchnorm_frozen(self, frozen: bool) -> None:
+        self._freeze_backbone_batchnorm = frozen
+        if frozen:
+            self.backbone.freeze_batchnorm_stats()
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        if mode and self._freeze_backbone_batchnorm:
+            self.backbone.freeze_batchnorm_stats()
+        return self
 
     def backbone_parameters(self):
         return self.backbone.parameters()
@@ -79,6 +94,7 @@ class ResNet18GlobalOnlyClassifier(nn.Module):
             hidden_dim=hidden_dim,
             dropout=dropout,
         )
+        self._freeze_backbone_batchnorm = False
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
         features = self.backbone(x)
@@ -89,10 +105,24 @@ class ResNet18GlobalOnlyClassifier(nn.Module):
         return self.classifier(global_features)
 
     def freeze_backbone(self) -> None:
-        self.backbone.set_trainable(False)
+        self.backbone.set_trainable_stage("none")
 
     def unfreeze_backbone(self) -> None:
-        self.backbone.set_trainable(True)
+        self.backbone.set_trainable_stage("full")
+
+    def set_finetune_mode(self, mode: str) -> None:
+        self.backbone.set_trainable_stage(mode)
+
+    def set_backbone_batchnorm_frozen(self, frozen: bool) -> None:
+        self._freeze_backbone_batchnorm = frozen
+        if frozen:
+            self.backbone.freeze_batchnorm_stats()
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        if mode and self._freeze_backbone_batchnorm:
+            self.backbone.freeze_batchnorm_stats()
+        return self
 
     def backbone_parameters(self):
         return self.backbone.parameters()

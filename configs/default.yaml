@@ -7,7 +7,7 @@ model:
 
 training:
   epochs_stage1: 8
-  epochs_stage2: 15
+  epochs_stage2: 6
   batch_size: 8
   num_workers: 0
   seed: 42
@@ -15,18 +15,47 @@ training:
   max_interop_threads: 1
   throttle_seconds_per_batch: 0.0
 
+early_stopping:
+  enabled: true
+  monitor: val_loss
+  mode: min
+  patience: 2
+  min_delta: 0.0015
+  start_after_epoch: 9
+
 optimizer:
   name: adamw
   backbone_lr: 0.0001
   head_lr: 0.0005
   weight_decay: 0.0001
 
+fine_tuning:
+  unfreeze_mode: layer3_layer4
+  freeze_backbone_batchnorm: true
+  backbone_lr: 0.00002
+  head_lr: 0.0002
+
 scheduler:
   name: cosine
-  t_max: 33
+  t_max: 8
 
 loss:
   name: cross_entropy
+  label_smoothing: 0.05
+
+imbalance:
+  strategy: class_weights
+  power: 0.5
+
+augmentation:
+  enable_online_aug: true
+  rotation: 4.0
+  translate: 0.02
+  scale_min: 0.98
+  scale_max: 1.02
+  brightness: 0.08
+  contrast: 0.08
+  blur_prob: 0.12
 
 data:
   train_csv: data/splits/train.csv
@@ -35,4 +64,4 @@ data:
   validation_split: 0.2
 
 paths:
-  output_root: outputs/training/default_grouped_split
+  output_root: outputs/training/default_stable_finetune
