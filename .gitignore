@@ -1,2 +1,8 @@
 data/
 outputs/training
+.venv/
+# Python cache files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
