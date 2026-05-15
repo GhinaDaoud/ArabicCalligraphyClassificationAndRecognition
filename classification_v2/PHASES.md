@@ -26,12 +26,12 @@
 - [ ] Offline preview report for selected samples
 
 ## Phase 5: EfficientNet-B0 training baseline
-- [ ] EfficientNet-B0 model setup (pretrained, new classifier head)
-- [ ] Weighted sampler (`1/sqrt(n_c)`)
-- [ ] Effective-number weighted CE (`beta=0.999`)
-- [ ] Macro-F1 checkpointing + early stopping
+- [x] EfficientNet-B0 model setup (pretrained, new classifier head)
+- [x] Weighted sampler (`1/sqrt(n_c)`)
+- [x] Effective-number weighted CE (`beta=0.999`)
+- [x] Macro-F1 checkpointing + early stopping
 
 ## Phase 6: Tuning pass
-- [ ] LR/regularization tuning
+- [x] LR/regularization tuning
 - [ ] Optional short high-res fine-tune (`320x640`)
-- [ ] Final confusion matrix + class recall report
+- [x] Final confusion matrix + class recall report

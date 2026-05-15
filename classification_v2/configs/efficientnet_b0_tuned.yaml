@@ -1,0 +1,37 @@
+experiment:
+  name: efficientnet_b0_tuned_v2
+  seed: 42
+
+data:
+  train_csv: data/processed/classification_v2_h224_w448/train/train.csv
+  val_csv: data/processed/classification_v2_h224_w448/val/val.csv
+  test_csv: data/processed/classification_v2_h224_w448/test/test.csv
+
+model:
+  name: efficientnet_b0
+  pretrained: true
+  dropout: 0.3
+  num_classes: 7
+
+imbalance:
+  weighted_sampler: true
+  sampler_power: 0.5
+  effective_num_beta: 0.999
+
+optimization:
+  optimizer: adamw
+  head_lr: 2.0e-4
+  backbone_lr: 5.0e-5
+  weight_decay: 1.0e-4
+  label_smoothing: 0.05
+
+training:
+  warmup_epochs: 4
+  finetune_epochs: 18
+  unfreeze_last_blocks: 2
+  batch_size: 8
+  num_workers: 2
+  amp: true
+  early_stopping_patience: 6
+  monitor: macro_f1
+

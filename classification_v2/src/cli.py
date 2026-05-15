@@ -6,6 +6,10 @@ import sys
 from data.build_manifest import main as build_manifest_main
 from data.build_splits import main as build_splits_main
 from data.preprocess_dataset import main as preprocess_dataset_main
+from training.compare_runs import run_compare_runs
+from training.evaluate import run_evaluate
+from training.plot_metrics import run_plot_metrics
+from training.predict_single import run_predict_single
 from training.train import run_train
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,6 +21,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("phase3-split", help="Build grouped splits (Phase 3).")
     sub.add_parser("phase4-preprocess", help="Preprocess split images (Phase 4).")
     sub.add_parser("phase5-train", help="Run EfficientNet-B0 training (Phase 5).")
+    sub.add_parser("phase6-eval", help="Evaluate a trained checkpoint (Phase 6).")
+    sub.add_parser("phase7-plot", help="Plot losses and metrics from a run directory.")
+    sub.add_parser("phase8-compare", help="Compare multiple run summaries.")
+    sub.add_parser("phase9-predict", help="Run single-image inference.")
     return parser
 
 
@@ -38,6 +46,18 @@ def run() -> None:
         return
     if args.command == "phase5-train":
         run_train(remaining)
+        return
+    if args.command == "phase6-eval":
+        run_evaluate(remaining)
+        return
+    if args.command == "phase7-plot":
+        run_plot_metrics(remaining)
+        return
+    if args.command == "phase8-compare":
+        run_compare_runs(remaining)
+        return
+    if args.command == "phase9-predict":
+        run_predict_single(remaining)
         return
 
     print(f"{args.command} is not implemented yet.")

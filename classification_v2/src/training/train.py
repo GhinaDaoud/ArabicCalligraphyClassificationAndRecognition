@@ -165,6 +165,19 @@ def run_train(argv: list[str] | None = None) -> None:
 
     history_path = run_dir / "history.csv"
     write_history_csv(history_path, history)
+    losses_path = run_dir / "losses.csv"
+    loss_rows = [
+        {
+            "epoch": row["epoch"],
+            "stage": row["stage"],
+            "train_loss": row["train_loss"],
+            "val_loss": row["val_loss"],
+            "lr_backbone": row.get("lr_backbone", 0.0),
+            "lr_head": row.get("lr_head", 0.0),
+        }
+        for row in history
+    ]
+    write_history_csv(losses_path, loss_rows)
 
     best_ckpt = torch.load(best["checkpoint_path"], map_location=device)
     model.load_state_dict(best_ckpt["model_state_dict"])
@@ -208,6 +221,7 @@ def run_train(argv: list[str] | None = None) -> None:
     write_json(run_dir / "summary.json", summary)
 
     print(f"Saved history: {history_path}")
+    print(f"Saved losses: {losses_path}")
     print(f"Saved summary: {run_dir / 'summary.json'}")
     print(
         f"Best val macro-F1={summary['val']['macro_f1']:.4f} | "
@@ -217,4 +231,3 @@ def run_train(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     run_train()
-

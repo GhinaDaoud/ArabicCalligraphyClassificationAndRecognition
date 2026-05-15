@@ -30,6 +30,10 @@ class EpochResult:
     confusion_matrix: torch.Tensor
 
 
+def _optimizer_lrs(optimizer: torch.optim.Optimizer) -> list[float]:
+    return [float(group["lr"]) for group in optimizer.param_groups]
+
+
 def _run_epoch(
     model: nn.Module,
     loader: DataLoader,
@@ -192,6 +196,13 @@ def train_model(
             "val_acc": va.accuracy,
             "val_macro_f1": va.macro_f1,
         }
+        lrs = _optimizer_lrs(optimizer)
+        if len(lrs) == 1:
+            row["lr_head"] = lrs[0]
+            row["lr_backbone"] = 0.0
+        else:
+            row["lr_backbone"] = lrs[0]
+            row["lr_head"] = lrs[1]
         history.append(row)
 
         score = va.macro_f1 if monitor == "macro_f1" else -va.loss
