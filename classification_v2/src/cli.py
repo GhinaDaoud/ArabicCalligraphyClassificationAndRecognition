@@ -8,6 +8,7 @@ from data.build_splits import main as build_splits_main
 from data.preprocess_dataset import main as preprocess_dataset_main
 from training.compare_runs import run_compare_runs
 from training.evaluate import run_evaluate
+from training.plot_confusion import run_plot_confusion
 from training.plot_metrics import run_plot_metrics
 from training.predict_single import run_predict_single
 from training.train import run_train
@@ -25,6 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("phase7-plot", help="Plot losses and metrics from a run directory.")
     sub.add_parser("phase8-compare", help="Compare multiple run summaries.")
     sub.add_parser("phase9-predict", help="Run single-image inference.")
+    sub.add_parser("phase10-confusion-plot", help="Plot evaluation confusion matrices as PNG.")
     return parser
 
 
@@ -58,6 +60,9 @@ def run() -> None:
         return
     if args.command == "phase9-predict":
         run_predict_single(remaining)
+        return
+    if args.command == "phase10-confusion-plot":
+        run_plot_confusion(remaining)
         return
 
     print(f"{args.command} is not implemented yet.")

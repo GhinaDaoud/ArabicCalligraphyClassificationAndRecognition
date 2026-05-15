@@ -26,14 +26,12 @@ def run_plot_metrics(argv: list[str] | None = None) -> None:
     losses_path = run_dir / "losses.csv"
     if not history_path.exists():
         raise FileNotFoundError(f"Missing history file: {history_path}")
-    if not losses_path.exists():
-        raise FileNotFoundError(f"Missing losses file: {losses_path}")
 
     out_dir = args.out_dir if args.out_dir is not None else (run_dir / "plots")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     history = _read_csv(history_path)
-    losses = _read_csv(losses_path)
+    losses = _read_csv(losses_path) if losses_path.exists() else history
 
     epochs_h = [int(float(r["epoch"])) for r in history]
     train_f1 = [float(r["train_macro_f1"]) for r in history]
@@ -89,26 +87,29 @@ def run_plot_metrics(argv: list[str] | None = None) -> None:
     plt.savefig(acc_png, dpi=150)
     plt.close()
 
-    # LR curves
-    plt.figure(figsize=(8, 5))
-    plt.plot(epochs_l, lr_head, marker="o", label="lr_head")
-    plt.plot(epochs_l, lr_backbone, marker="o", label="lr_backbone")
-    plt.xlabel("Epoch")
-    plt.ylabel("Learning Rate")
-    plt.title("Learning Rate Curves")
-    plt.grid(alpha=0.3)
-    plt.legend()
-    plt.tight_layout()
+    # LR curves (only if available; legacy runs may not contain lr columns)
     lr_png = out_dir / "lr_curves.png"
-    plt.savefig(lr_png, dpi=150)
-    plt.close()
+    if any(v != 0.0 for v in lr_head) or any(v != 0.0 for v in lr_backbone):
+        plt.figure(figsize=(8, 5))
+        plt.plot(epochs_l, lr_head, marker="o", label="lr_head")
+        plt.plot(epochs_l, lr_backbone, marker="o", label="lr_backbone")
+        plt.xlabel("Epoch")
+        plt.ylabel("Learning Rate")
+        plt.title("Learning Rate Curves")
+        plt.grid(alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(lr_png, dpi=150)
+        plt.close()
 
     print(f"Saved: {loss_png}")
     print(f"Saved: {f1_png}")
     print(f"Saved: {acc_png}")
-    print(f"Saved: {lr_png}")
+    if lr_png.exists():
+        print(f"Saved: {lr_png}")
+    else:
+        print("Skipped lr_curves.png (no LR columns in run logs).")
 
 
 if __name__ == "__main__":
     run_plot_metrics()
-
